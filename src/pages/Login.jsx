@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { authAPI } from "../api";
 import "./Auth.css";
 
 export default function Login({ onLogin, onGoRegister }) {
-  const [form, setForm] = useState({ email: "", password: "" });
-  const [error, setError] = useState("");
+  const [form,    setForm]    = useState({ username: "", password: "" });
+  const [error,   setError]   = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
@@ -13,16 +14,37 @@ export default function Login({ onLogin, onGoRegister }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.email || !form.password) {
-      setError("이메일과 비밀번호를 입력해주세요.");
+    if (!form.username || !form.password) {
+      setError("아이디와 비밀번호를 입력해주세요.");
       return;
     }
     setLoading(true);
-    // 임시 로그인 (나중에 백엔드 API 연결)
-    setTimeout(() => {
+    try {
+      const res = await authAPI.login({
+        username: form.username,
+        password: form.password,
+      });
+
+      const token = res.token ?? res.auth_token ?? res.key;
+      if (token) localStorage.setItem("billim_token", token);
+
+      const me = await authAPI.me();
+      console.log("🔍 my-settings 응답:", me);
+      onLogin(me);
+
+    } catch (err) {
+      console.log("🔍 에러:", err);
+      const detail = err?.detail;
+      if (detail?.non_field_errors) {
+        setError(detail.non_field_errors[0]);
+      } else if (detail?.username) {
+        setError(detail.username[0]);
+      } else {
+        setError("아이디 또는 비밀번호가 올바르지 않습니다.");
+      }
+    } finally {
       setLoading(false);
-      onLogin({ email: form.email, name: "사용자" });
-    }, 1000);
+    }
   };
 
   const handleOAuth = (provider) => {
@@ -56,27 +78,23 @@ export default function Login({ onLogin, onGoRegister }) {
           </button>
         </div>
 
-        <div className="divider"><span>또는 이메일로</span></div>
+        <div className="divider"><span>또는 아이디로</span></div>
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="input-wrap">
-            <label>이메일</label>
+            <label>아이디</label>
             <input
-              type="email"
-              name="email"
-              placeholder="example@email.com"
-              value={form.email}
-              onChange={handleChange}
+              type="text" name="username"
+              placeholder="아이디 입력"
+              value={form.username} onChange={handleChange}
             />
           </div>
           <div className="input-wrap">
             <label>비밀번호</label>
             <input
-              type="password"
-              name="password"
+              type="password" name="password"
               placeholder="비밀번호 입력"
-              value={form.password}
-              onChange={handleChange}
+              value={form.password} onChange={handleChange}
             />
           </div>
 
